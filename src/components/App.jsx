@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './Button/Button';
 import { ImageGallery } from './ImageGallery/ImageGallery';
 import { Searchbar } from './Searchbar/Searchbar';
@@ -7,30 +7,39 @@ import css from './App.module.css';
 import { getAPI } from '../pixabay-api';
 import toast, { Toaster } from 'react-hot-toast';
 
-export class App extends Component {
-  // Initial State
-  state = {
-    search: '',
-    page: 1,
-    images: [],
-    isLoading: false,
-    isError: false,
-    isEnd: false,
-  };
+// Refactored code for useState
+export const App = () => {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [isEnd, setIsEnd] = useState(false);
 
-  componentDidUpdate = async (_prevProps, prevState) => {
-    const { search, page } = this.state;
+  useEffect(() => {
+    if (search === '') return;
 
-    if (prevState.search !== search || prevState.page !== page) {
-      await this.fetchImages(search, page);
-    }
-  };
+    // Called immediately (IIFE)
+    (async () => {
+      await fetchImages(search, page);
+    })();
+    // Clean function like -> componentWillUnmount() * This is optional
+    // return () => {};
 
+    // If dependency array is empty, useEffect hook will be called on initial mount, componentDidMount() equivalent.
+    // If dependency arrat has values, useEffect hook will called if the states are changed in it, componentDidUpdate() equivalent.
+    // If we omit the dependency array, useEffect hook will be called every render, bad practice! (App may crash).
+  }, [search, page]);
+
+  // Refactored code for useState
   // This takes query and fetch images
-  fetchImages = async (search, page) => {
+  const fetchImages = async (search, page) => {
     try {
-      this.setState({ isLoading: true });
-      this.setState({ isEnd: false });
+      // this.setState({ isLoading: true });
+      setIsLoading(true);
+
+      // this.setState({ isEnd: false });
+      setIsEnd(false);
 
       // fetch data from API
       const fetchedImages = await getAPI(search, page);
@@ -51,7 +60,8 @@ export class App extends Component {
 
       // Display a message if page is already at the end of data
       if (page * 12 >= totalHits) {
-        this.setState({ isEnd: true });
+        // this.setState({ isEnd: true });
+        setIsEnd(true);
         toast("We're sorry, but you've reached the end of search results.", {
           icon: '👋',
           style: {
@@ -63,17 +73,20 @@ export class App extends Component {
       }
 
       // Update the state with the new images
-      this.setState(prevState => ({
-        images: [...prevState.images, ...hits],
-      }));
+      // this.setState(prevState => ({
+      //   images: [...prevState.images, ...hits],
+      // }));
+      setImages(prevState => [...prevState, ...hits]);
     } catch {
-      this.setState({ isError: true });
+      // this.setState({ isError: true });
+      setIsError(true);
     } finally {
-      this.setState({ isLoading: false });
+      // this.setState({ isLoading: false });
+      setIsLoading(false);
     }
   };
 
-  handleSubmit = e => {
+  const handleSubmit = e => {
     e.preventDefault();
 
     const newSearch = e.target.search.value.trim().toLowerCase();
@@ -84,33 +97,31 @@ export class App extends Component {
       return;
     }
 
-    const { search } = this.state;
-
     // If new search string is different from the current search string saved in state
     if (newSearch !== search) {
-      this.setState({ search: newSearch, page: 1, images: [] });
+      // this.setState({ search: newSearch, page: 1, images: [] });
+      setSearch(newSearch);
+      setPage(1);
+      setImages([]);
     }
   };
 
-  handleClick = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const handleClick = () => {
+    // this.setState(prevState => ({ page: prevState.page + 1 }));
+    setPage(prevState => prevState + 1);
   };
 
-  render() {
-    const { images, isLoading, isError, isEnd } = this.state;
-    return (
-      <div className={css.app}>
-        <Searchbar onSubmit={this.handleSubmit} />
-        {/* Image Rendering */}
-        {images.length >= 1 && <ImageGallery photos={images} />}
+  return (
+    <div className={css.app}>
+      <Searchbar onSubmit={handleSubmit} />
+      {/* Image Rendering */}
+      {images.length >= 1 && <ImageGallery photos={images} />}
 
-        {/* Load more button */}
-        {images.length >= 1 && !isEnd && <Button onClick={this.handleClick} />}
-        {isLoading && <Loader />}
-        {isError &&
-          toast.error('Oops, something went wrong! Reload this page!')}
-        <Toaster position="top-right" reverseOrder={false} />
-      </div>
-    );
-  }
-}
+      {/* Load more button */}
+      {images.length >= 1 && !isEnd && <Button onClick={handleClick} />}
+      {isLoading && <Loader />}
+      {isError && toast.error('Oops, something went wrong! Reload this page!')}
+      <Toaster position="top-right" />
+    </div>
+  );
+};
